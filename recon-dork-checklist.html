@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recon Dork Checklist · Bug Bounty Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #0f1629;
+    --bg3: #0a0f20;
+    --border: #1e2d5a;
+    --border2: #2a3d8a;
+    --accent: #7df9ff;
+    --accent2: #4f8eff;
+    --green: #4fffb0;
+    --text: #e0e6ff;
+    --text-dim: #c5d3ff;
+    --muted: #556;
+    --muted2: #778;
+    --muted3: #445;
+    --red: #f87;
+    --bg-checked: #0a1a12;
+    --col-google: #4285F4;
+    --col-bing: #008373;
+    --col-yandex: #FF0000;
+    --col-duckduckgo: #DE5833;
+    --col-shodan: #FF3B30;
+    --col-github: #6E40C9;
+    --col-censys: #00C4B4;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Fira Code', 'Courier New', monospace;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* Subtle scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 28px; }
+  .header h1 {
+    font-size: clamp(20px, 4vw, 30px);
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-shadow: 0 0 24px #7df9ff66, 0 0 60px #7df9ff22;
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+  @keyframes glowPulse {
+    0%, 100% { text-shadow: 0 0 20px #7df9ff66, 0 0 50px #7df9ff22; }
+    50% { text-shadow: 0 0 32px #7df9ffaa, 0 0 80px #7df9ff44; }
+  }
+  .header .sub {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 5px;
+    letter-spacing: 4px;
+  }
+
+  /* Controls */
+  .controls { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .controls input, .controls select {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .controls input:focus, .controls select:focus { border-color: var(--accent); }
+  #targetInput { flex: 1; min-width: 200px; }
+  #engineSelect { cursor: pointer; }
+
+  .controls2 { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .controls2 input {
+    flex: 1; min-width: 160px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .controls2 input:focus { border-color: var(--accent); }
+
+  .btn {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { background: #1a2d5a; border-color: var(--accent); color: var(--accent); }
+  .btn.reset { border-color: #3a1a1a; color: var(--red); }
+  .btn.reset:hover { border-color: var(--red); }
+
+  /* Progress */
+  .progress-wrap { margin-bottom: 22px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .progress-label span:last-child { color: var(--accent); }
+  .progress-bar { background: var(--bg2); border-radius: 4px; height: 6px; border: 1px solid var(--border); overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 4px; transition: width .4s ease; }
+
+  /* Category */
+  .category { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+
+  .cat-header {
+    background: var(--bg2);
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    user-select: none;
+    transition: background .15s;
+  }
+  .cat-header:hover { background: #111b35; }
+
+  .cat-title { flex: 1; font-weight: 600; font-size: 13px; color: var(--text-dim); }
+  .cat-engines { display: flex; gap: 5px; flex-wrap: wrap; }
+  .eng-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: #1a2040;
+    border: 1px solid transparent;
+  }
+  .cat-count { font-size: 11px; color: var(--muted); margin-left: 8px; white-space: nowrap; }
+  .cat-toggle { font-size: 11px; color: var(--muted); margin-left: 4px; transition: transform .2s; }
+
+  .cat-body { display: block; }
+  .cat-body.collapsed { display: none; }
+
+  .cat-insight {
+    margin: 8px 14px 10px;
+    padding: 8px 12px;
+    background: var(--bg3);
+    border-left: 3px solid var(--border2);
+    border-radius: 0 4px 4px 0;
+    font-size: 11px;
+    color: var(--muted2);
+    line-height: 1.6;
+  }
+
+  .cat-progress { margin: 0 14px 10px; height: 3px; background: var(--bg2); border-radius: 2px; overflow: hidden; }
+  .cat-progress-fill { height: 100%; background: var(--accent2); border-radius: 2px; transition: width .3s, background .3s; }
+  .cat-progress-fill.complete { background: var(--green); }
+
+  /* Dork row */
+  .dork-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-bottom: 1px solid #0f1629;
+    transition: background .15s;
+  }
+  .dork-row.done { background: var(--bg-checked); }
+  .dork-row:last-child { border-bottom: none; }
+
+  .dork-row input[type="checkbox"] {
+    accent-color: var(--green);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .dork-info { flex: 1; min-width: 0; }
+  .dork-label { font-size: 12px; color: var(--text-dim); font-weight: 600; transition: color .15s; }
+  .dork-row.done .dork-label { color: var(--green); }
+  .dork-query {
+    font-size: 10px;
+    color: var(--muted3);
+    font-family: 'Share Tech Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+
+  .dork-btn {
+    background: #1a2040;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all .15s;
+  }
+  .dork-copy { color: var(--accent); }
+  .dork-copy:hover { background: #1e2d5a; }
+  .dork-copy.copied { color: var(--green); border-color: var(--green)44; }
+  .dork-open { color: var(--accent2); }
+  .dork-open:hover { background: #1e2d5a; }
+
+  /* Footer */
+  .footer { text-align: center; font-size: 10px; color: #334; margin-top: 28px; letter-spacing: 2px; padding-bottom: 16px; }
+
+  /* No results */
+  .no-results { text-align: center; color: var(--muted); font-size: 13px; padding: 40px 0; }
+
+  @media (max-width: 500px) {
+    body { padding: 12px; }
+    .dork-query { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🔍 RECON DORK CHECKLIST</h1>
+    <div class="sub">SEARCH ENGINE DORKING · BUG BOUNTY EDITION</div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <input id="targetInput" type="text" placeholder="Enter target domain (e.g. example.com)" autocomplete="off" spellcheck="false">
+    <select id="engineSelect">
+      <option value="Google">Google</option>
+      <option value="Bing">Bing</option>
+      <option value="Yandex">Yandex</option>
+      <option value="DuckDuckGo">DuckDuckGo</option>
+      <option value="Shodan">Shodan</option>
+      <option value="GitHub">GitHub</option>
+      <option value="Censys">Censys</option>
+    </select>
+  </div>
+
+  <div class="controls2">
+    <input id="searchInput" type="text" placeholder="🔎 Filter dorks..." autocomplete="off">
+    <button class="btn" id="activeBtn" onclick="toggleActiveOnly()">All dorks</button>
+    <button class="btn reset" onclick="resetAll()">↺ Reset</button>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>PROGRESS</span>
+      <span id="progressText">0/0 dorks run (0%)</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Categories will be injected here -->
+  <div id="categoriesWrap"></div>
+
+  <div class="footer">FOR AUTHORIZED SECURITY RESEARCH &amp; BUG BOUNTY ONLY · STAY IN SCOPE</div>
+</div>
+
+<script>
+const ENGINE_URLS = {
+  Google: q => `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+  Bing: q => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
+  Yandex: q => `https://yandex.com/search/?text=${encodeURIComponent(q)}`,
+  DuckDuckGo: q => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
+  Shodan: q => `https://www.shodan.io/search?query=${encodeURIComponent(q)}`,
+  GitHub: q => `https://github.com/search?q=${encodeURIComponent(q)}&type=code`,
+  Censys: q => `https://search.censys.io/search?resource=hosts&q=${encodeURIComponent(q)}`,
+};
+
+const ENGINE_COLORS = {
+  Google:"#4285F4", Bing:"#008373", Yandex:"#FF0000",
+  DuckDuckGo:"#DE5833", Shodan:"#FF3B30", GitHub:"#6E40C9", Censys:"#00C4B4"
+};
+
+const CATEGORIES = [
+  {
+    id:"exposed_files", name:"🗂️ Exposed Files & Docs",
+    engines:["Google","Bing","Yandex","DuckDuckGo"],
+    insight:"HackerOne hunters found confidential docs (NDAs, reports, contracts) on S3 via these. DoD disclosures confirmed.",
+    dorks:[
+      {id:"ef1",label:"Config/Env files",q:'site:{target} ext:log | ext:txt | ext:conf | ext:cnf | ext:ini | ext:env | ext:sh | ext:bak | ext:backup | ext:swp | ext:old | ext:git | ext:svn | ext:htpasswd | ext:htaccess | ext:json'},
+      {id:"ef2",label:"Office docs (Word/PPT/XLS/PDF)",q:'site:{target} ext:doc | ext:docx | ext:pdf | ext:odt | ext:rtf | ext:ppt | ext:pptx | ext:pps | ext:csv | ext:xls | ext:xlsx'},
+      {id:"ef3",label:"Confidential / internal labels",q:'site:{target} intitle:"confidential" | intitle:"internal use only" | intitle:"do not share" | intitle:"restricted"'},
+      {id:"ef4",label:"S3 buckets – confidential/top secret",q:'site:s3.amazonaws.com "{target}" confidential | "top secret" | classified | undisclosed'},
+      {id:"ef5",label:"NDA & contract docs",q:'site:{target} filetype:pdf intitle:"nda" | intitle:"non-disclosure" | intitle:"agreement" | intitle:"contract"'},
+      {id:"ef6",label:"Exposed Excel spreadsheets",q:'site:{target} filetype:xls | filetype:xlsx intext:"password" | intext:"username" | intext:"confidential"'},
+      {id:"ef7",label:"Open directory listings",q:'site:{target} intitle:"index of" inurl:/ "parent directory"'},
+      {id:"ef8",label:"XML / WSDL service files",q:'site:{target} ext:xml | ext:wsdl | ext:wadl'},
+      {id:"ef9",label:"Private keys / certs",q:'site:{target} ext:pem | ext:key | ext:crt | ext:cer | ext:p12 | ext:pfx'},
+      {id:"ef10",label:"SQL dumps",q:'site:{target} ext:sql | ext:sql.gz | ext:dump intext:"INSERT INTO"'},
+    ]
+  },
+  {
+    id:"credentials", name:"🔑 Credentials & Secrets",
+    engines:["Google","GitHub","Bing"],
+    insight:"Bug hunters frequently find hardcoded API keys in GitHub repos and .env files indexed by Google. This is one of the highest-value dork categories on HackerOne.",
+    dorks:[
+      {id:"cr1",label:"Password files",q:'site:{target} intext:"password" filetype:txt | filetype:log | filetype:env'},
+      {id:"cr2",label:".env files with DB creds",q:'site:{target} filetype:env intext:"DB_PASSWORD" | intext:"DB_USER" | intext:"APP_SECRET"'},
+      {id:"cr3",label:"API keys / tokens in JSON",q:'site:{target} filetype:json intext:"api_key" | intext:"access_token" | intext:"secret_key" | intext:"client_secret"'},
+      {id:"cr4",label:'GitHub: API keys for target',q:'"{target}" "api_key" | "apikey" | "api_secret" | "access_token" | "secret_key"'},
+      {id:"cr5",label:'GitHub: .env committed',q:'"{target}" filename:.env "DB_PASSWORD" | "SECRET" | "API_KEY"'},
+      {id:"cr6",label:'GitHub: AWS keys',q:'"{target}" "AKIA" "aws_access_key_id"'},
+      {id:"cr7",label:"Exposed htpasswd",q:'site:{target} inurl:".htpasswd" | intext:"htpasswd"'},
+      {id:"cr8",label:"Connection strings",q:'site:{target} intext:"connectionString" | intext:"jdbc:mysql" | intext:"mongodb://" | intext:"postgres://"'},
+      {id:"cr9",label:"FTP credentials",q:'site:{target} intext:"ftp://" intext:"password"'},
+      {id:"cr10",label:'SSH private keys',q:'"{target}" "BEGIN RSA PRIVATE KEY" | "BEGIN OPENSSH PRIVATE KEY"'},
+    ]
+  },
+  {
+    id:"admin_panels", name:"🖥️ Admin Panels & Login Pages",
+    engines:["Google","Bing","Yandex"],
+    insight:"Hunters on HackerOne use these to find staging/UAT admin panels that are misconfigured or unprotected. Staging envs are a goldmine.",
+    dorks:[
+      {id:"ap1",label:"Admin login panels",q:'site:{target} inurl:admin | inurl:login | inurl:portal | inurl:dashboard inurl:admin'},
+      {id:"ap2",label:"Staging / dev environments",q:'site:{target} inurl:staging | inurl:uat | inurl:test | inurl:dev | inurl:preprod | inurl:sandbox'},
+      {id:"ap3",label:"phpMyAdmin",q:'site:{target} inurl:phpmyadmin | intitle:"phpMyAdmin" "Welcome to phpMyAdmin"'},
+      {id:"ap4",label:"Joomla / WordPress admin",q:'site:{target} inurl:/wp-admin | inurl:/wp-login.php | inurl:/joomla/login | inurl:/administrator/index.php'},
+      {id:"ap5",label:"Jenkins / CI panels",q:'site:{target} inurl:jenkins | intitle:"Dashboard [Jenkins]"'},
+      {id:"ap6",label:"Kibana / Grafana panels",q:'site:{target} inurl:kibana | inurl:grafana | intitle:"Grafana" | intitle:"Kibana"'},
+      {id:"ap7",label:"Webmin / cPanel",q:'site:{target} inurl:2082 | inurl:2083 | inurl:10000 intitle:"webmin"'},
+      {id:"ap8",label:"Exposed Swagger/API docs",q:'site:{target} inurl:swagger | inurl:api-docs | intitle:"Swagger UI" | inurl:/api/v1'},
+      {id:"ap9",label:"Laravel debug mode",q:'site:{target} intext:"Laravel" intitle:"Whoops!" | intitle:"ErrorException"'},
+      {id:"ap10",label:"Django admin exposed",q:'site:{target} inurl:/admin/ intitle:"Django"'},
+    ]
+  },
+  {
+    id:"error_leaks", name:"🚨 Error Messages & Stack Traces",
+    engines:["Google","Bing","DuckDuckGo"],
+    insight:"Stack traces reveal tech stack, DB type, file paths and internal IPs — all used by bug hunters to pivot into deeper recon.",
+    dorks:[
+      {id:"er1",label:"SQL errors",q:'site:{target} inurl:"error" | intext:"database error" | intext:"SQL syntax" | intext:"mysql_fetch" | intext:"ORA-"'},
+      {id:"er2",label:"Stack traces / exceptions",q:'site:{target} intitle:"exception" | intitle:"failure" | intitle:"server at" | inurl:exception | intext:"unhandled exception" | intext:"stack trace"'},
+      {id:"er3",label:"PHP warnings / errors",q:'site:{target} intext:"undefined index" | intext:"Warning: include" | intext:"Parse error" | intext:"Notice: Undefined"'},
+      {id:"er4",label:"IIS / ASP.NET errors",q:'site:{target} intitle:"Server Error in" intext:"Application" intitle:"Runtime Error"'},
+      {id:"er5",label:"404/debug pages with paths",q:'site:{target} intext:"Application root:" | intext:"Physical path:" | intitle:"404" intext:"/var/www"'},
+      {id:"er6",label:"Java / Tomcat exceptions",q:'site:{target} intitle:"Apache Tomcat" | intext:"java.lang.NullPointerException" | intext:"at org.apache"'},
+    ]
+  },
+  {
+    id:"subdomains", name:"🌐 Subdomain & Asset Discovery",
+    engines:["Google","Bing","Yandex"],
+    insight:"HackerOne $1,500 bounty case: hunter used multi-asterisk Google dorks to find staging subdomains not in any enumeration tool. Yandex indexes CIS infrastructure not found on Google.",
+    dorks:[
+      {id:"sd1",label:"All subdomains",q:'site:*.{target}'},
+      {id:"sd2",label:"Nested subdomains (multi-level)",q:'site:*.*.{target}'},
+      {id:"sd3",label:"Dev/staging subdomains",q:'site:*.{target} inurl:staging | inurl:dev | inurl:test | inurl:uat | inurl:preprod'},
+      {id:"sd4",label:"API subdomains",q:'site:api.{target} | site:api2.{target} | site:v2.{target} | site:gateway.{target}'},
+      {id:"sd5",label:"Subdomains with admin paths",q:'site:*.{target} inurl:admin | inurl:portal | inurl:dashboard | inurl:manage'},
+      {id:"sd6",label:"Yandex: CIS-indexed subdomains",q:'site:{target} | site:*.{target}'},
+      {id:"sd7",label:"Cloud assets (S3, Azure, GCP)",q:'site:*.s3.amazonaws.com "{target}" | site:*.blob.core.windows.net "{target}" | site:storage.googleapis.com "{target}"'},
+      {id:"sd8",label:"Old / archived subdomains",q:'site:{target} inurl:old | inurl:legacy | inurl:backup | inurl:archive | inurl:deprecated'},
+    ]
+  },
+  {
+    id:"open_redirect", name:"↪️ Open Redirects & SSRF Params",
+    engines:["Google","Bing"],
+    insight:"Hunters specifically target redirect parameters to chain with OAuth flows or find SSRF vectors. These params are the most commonly reported via dorking.",
+    dorks:[
+      {id:"or1",label:"Redirect parameters",q:'site:{target} inurl:url= | inurl:return= | inurl:next= | inurl:redirect= | inurl:redir= | inurl:ret= | inurl:r2= | inurl:page= inurl:http'},
+      {id:"or2",label:"Search / query parameters (XSS)",q:'site:{target} inurl:q= | inurl:s= | inurl:search= | inurl:query= | inurl:keyword= | inurl:lang= inurl:&'},
+      {id:"or3",label:"SSRF-prone params",q:'site:{target} inurl:url= | inurl:uri= | inurl:path= | inurl:host= | inurl:to= | inurl:dest= | inurl:endpoint='},
+      {id:"or4",label:"Callback / webhook params",q:'site:{target} inurl:callback= | inurl:webhook= | inurl:notify= | inurl:ping= | inurl:hook='},
+    ]
+  },
+  {
+    id:"cloud_infra", name:"☁️ Cloud & Infrastructure Leaks",
+    engines:["Google","Shodan","Censys"],
+    insight:"Shodan + Censys are used to find exposed services not indexed by Google. Favicon hash pivoting on Shodan reveals hidden assets belonging to the same org.",
+    dorks:[
+      {id:"ci1",label:"Exposed MongoDB",q:'mongodb port:27017 org:"{target}"'},
+      {id:"ci2",label:"Exposed Elasticsearch",q:'port:9200 org:"{target}" http.title:"Elasticsearch"'},
+      {id:"ci3",label:"Open Redis instances",q:'port:6379 org:"{target}" redis_version'},
+      {id:"ci4",label:"Exposed Docker APIs",q:'port:2375 org:"{target}" product:"Docker"'},
+      {id:"ci5",label:"RDP exposed (3389)",q:'org:"{target}" port:3389 os:windows'},
+      {id:"ci6",label:"Kubernetes API server",q:'port:6443 org:"{target}" ssl.cert.subject.cn:kubernetes'},
+      {id:"ci7",label:"Jenkins / CI on Shodan",q:'org:"{target}" http.title:"Dashboard [Jenkins]"'},
+      {id:"ci8",label:"SSL certs with VPN in subdomain",q:'ssl.cert.subject.cn:"vpn.{target}"'},
+      {id:"ci9",label:"Exposed Grafana",q:'org:"{target}" http.title:"Grafana" port:3000'},
+      {id:"ci10",label:"Apache Struts / Tomcat exposed",q:'org:"{target}" http.title:"Apache Tomcat" http.status:200'},
+    ]
+  },
+  {
+    id:"github_leaks", name:"🐙 GitHub Code Leaks",
+    engines:["GitHub"],
+    insight:"GitHub dorking is one of the most high-yield techniques. Researchers have found AWS keys, internal API endpoints, and DB passwords in committed code.",
+    dorks:[
+      {id:"gh1",label:"API keys for target",q:'"{target}.com" "api_key" | "apikey" | "api_secret" | "access_token"'},
+      {id:"gh2",label:".env files committed",q:'"{target}" filename:.env "SECRET" | "PASSWORD" | "KEY"'},
+      {id:"gh3",label:"Internal endpoints exposed",q:'"{target}" "internal" | "staging" | "localhost" | "127.0.0.1" filename:*.js | filename:*.ts'},
+      {id:"gh4",label:"AWS credentials",q:'"{target}" "AKIA" "aws_access_key_id" | "aws_secret_access_key"'},
+      {id:"gh5",label:"Firebase / GCP configs",q:'"{target}" "firebase" "apiKey" | "databaseURL" | "storageBucket"'},
+      {id:"gh6",label:"Private Slack tokens",q:'"{target}" "xoxp-" | "xoxb-" | "xoxa-"'},
+      {id:"gh7",label:"Stripe / payment keys",q:'"{target}" "sk_live_" | "pk_live_" | "rk_live_"'},
+      {id:"gh8",label:"JWT secrets",q:'"{target}" "jwt_secret" | "JWT_SECRET" | "jwt_key"'},
+      {id:"gh9",label:"Internal config / YAML",q:'"{target}" filename:config.yml | filename:settings.py "password" | "secret"'},
+      {id:"gh10",label:"Private repo clues",q:'org:{target} "internal" | "private" | "confidential" is:public'},
+    ]
+  },
+  {
+    id:"yandex_osint", name:"🔴 Yandex OSINT (CIS / Unique Indexed)",
+    engines:["Yandex"],
+    insight:"Yandex indexes CIS-region infrastructure, older forgotten pages, and content inaccessible to Google. It's faster at indexing Russian-language domains and breach paste sites.",
+    dorks:[
+      {id:"ya1",label:"All indexed subdomains on Yandex",q:'site:{target}'},
+      {id:"ya2",label:"Config / env files",q:'site:{target} url:*.env | url:*.conf | url:config.php'},
+      {id:"ya3",label:"Exposed document files",q:'site:{target} mime:application/pdf | mime:application/msword "confidential"'},
+      {id:"ya4",label:"Login panels Yandex-indexed",q:'site:{target} title:"login" | title:"admin" | title:"dashboard"'},
+      {id:"ya5",label:"Cached deleted pages",q:'cache:{target}'},
+      {id:"ya6",label:"Cyrillic / multilingual assets",q:'site:{target} lang:ru | lang:uk'},
+      {id:"ya7",label:"Old forgotten pages",q:'site:{target} title:"under construction" | title:"coming soon" | title:"test page"'},
+    ]
+  },
+  {
+    id:"cms_vulns", name:"🧩 CMS & Framework Vulnerabilities",
+    engines:["Google","Bing"],
+    insight:"Finding specific CMS versions lets researchers cross-reference CVEs. WordPress plugins are the most common CMS vector reported in bug bounties.",
+    dorks:[
+      {id:"cms1",label:"WordPress version disclosure",q:'site:{target} inurl:/wp-content/plugins | inurl:/wp-includes intext:"WordPress"'},
+      {id:"cms2",label:"Drupal login / admin",q:'site:{target} intext:"Powered by" intext:Drupal inurl:user'},
+      {id:"cms3",label:"Joomla login page",q:'site:{target} inurl:/joomla/login | inurl:/administrator/index.php'},
+      {id:"cms4",label:"Magento admin",q:'site:{target} inurl:/admin/index.php?route=common'},
+      {id:"cms5",label:"Exposed wp-config.php",q:'site:{target} inurl:wp-config.php | intext:"DB_NAME" "DB_PASSWORD"'},
+      {id:"cms6",label:"Exposed Strapi CMS",q:'site:{target} inurl:/admin intitle:"Strapi"'},
+      {id:"cms7",label:"Exposed Django admin",q:'site:{target} inurl:/django-admin | intitle:"Django administration"'},
+    ]
+  },
+  {
+    id:"network_exposure", name:"🔌 Network & IoT Exposure",
+    engines:["Shodan","Censys"],
+    insight:"Shodan-based recon reveals forgotten IPs, exposed industrial systems, and camera feeds. These often belong to target orgs via ASN/org filter.",
+    dorks:[
+      {id:"ne1",label:"Open webcams",q:'org:"{target}" webcam | "Network Camera" port:80,8080'},
+      {id:"ne2",label:"Fortinet VPN (CVE-2018-13379)",q:'org:"{target}" "Fortinet" ssl http.title:"SSL VPN"'},
+      {id:"ne3",label:"Cisco ASA / Firepower",q:'org:"{target}" http.title:"Cisco ASDM" | "Cisco Adaptive Security"'},
+      {id:"ne4",label:"Exposed SMB (port 445)",q:'org:"{target}" port:445 os:windows'},
+      {id:"ne5",label:"FTP anonymous access",q:'org:"{target}" port:21 "230 Login successful" "anonymous"'},
+      {id:"ne6",label:"SMTP servers exposed",q:'org:"{target}" port:25 "220 smtp"'},
+      {id:"ne7",label:"Printers / networked devices",q:'org:"{target}" port:631 | port:9100 "HP" | "Canon" | "Xerox"'},
+    ]
+  },
+  {
+    id:"program_discovery", name:"🎯 Bug Bounty Program Discovery",
+    engines:["Google","Bing"],
+    insight:"Researchers use dorks to find private/unlisted programs not on HackerOne or Bugcrowd. Embedded HackerOne forms on company sites reveal hidden private programs.",
+    dorks:[
+      {id:"pd1",label:"Find bug bounty / disclosure pages",q:'"submit your vulnerability" intitle:"bug bounty" | intitle:"responsible disclosure"'},
+      {id:"pd2",label:"Embedded HackerOne forms",q:'"powered by hackerone" "submit vulnerability report"'},
+      {id:"pd3",label:"security.txt files with bounty",q:'site:*/security.txt "bounty"'},
+      {id:"pd4",label:"PDF bounty policies",q:'filetype:pdf inurl:"bug-bounty-policy" | intitle:"vulnerability disclosure policy"'},
+      {id:"pd5",label:"Gov / edu disclosure programs",q:'site:*.gov | site:*.edu "report a vulnerability" | "responsible disclosure"'},
+      {id:"pd6",label:'Hall of fame pages (self-hosted)',q:'"bug bounty hall of fame" -site:hackerone.com -site:bugcrowd.com'},
+    ]
+  },
+];
+
+// State
+let checked = {};
+let expanded = {};
+let activeOnly = false;
+
+const ALL_IDS = CATEGORIES.flatMap(c => c.dorks.map(d => d.id));
+const total = ALL_IDS.length;
+
+const targetEl = document.getElementById('targetInput');
+const engineEl = document.getElementById('engineSelect');
+const searchEl = document.getElementById('searchInput');
+const activeBtnEl = document.getElementById('activeBtn');
+const progressTextEl = document.getElementById('progressText');
+const progressFillEl = document.getElementById('progressFill');
+const wrapEl = document.getElementById('categoriesWrap');
+
+function fillDork(q) {
+  const t = targetEl.value.trim();
+  return t ? q.replace(/\{target\}/g, t) : q;
+}
+
+function updateProgress() {
+  const done = ALL_IDS.filter(id => checked[id]).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  progressTextEl.textContent = `${done}/${total} dorks run (${pct}%)`;
+  progressFillEl.style.width = pct + '%';
+}
+
+function updateCatProgress(catId) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  if (!cat) return;
+  const catDone = cat.dorks.filter(d => checked[d.id]).length;
+  const catPct = Math.round((catDone / cat.dorks.length) * 100);
+  const fill = document.getElementById('catprog-' + catId);
+  const count = document.getElementById('catcount-' + catId);
+  if (fill) {
+    fill.style.width = catPct + '%';
+    fill.className = 'cat-progress-fill' + (catPct === 100 ? ' complete' : '');
+  }
+  if (count) {
+    count.textContent = `${catDone}/${cat.dorks.length}`;
+    count.style.color = catDone === cat.dorks.length ? 'var(--green)' : 'var(--muted)';
+  }
+}
+
+function toggleCheck(id, catId) {
+  checked[id] = !checked[id];
+  // Update row style
+  const row = document.getElementById('row-' + id);
+  if (row) row.className = 'dork-row' + (checked[id] ? ' done' : '');
+  const lbl = document.getElementById('lbl-' + id);
+  if (lbl) lbl.className = 'dork-label';
+  updateProgress();
+  updateCatProgress(catId);
+}
+
+function toggleExpand(catId) {
+  expanded[catId] = !expanded[catId];
+  const body = document.getElementById('body-' + catId);
+  const tog = document.getElementById('tog-' + catId);
+  if (body) body.className = 'cat-body' + (expanded[catId] ? '' : ' collapsed');
+  if (tog) tog.textContent = expanded[catId] ? '▲' : '▼';
+}
+
+function copyDork(q, id) {
+  const filled = fillDork(q);
+  navigator.clipboard.writeText(filled).then(() => {
+    const btn = document.getElementById('copy-' + id);
+    if (btn) {
+      btn.textContent = '✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1500);
+    }
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = filled;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
+
+function openDork(q) {
+  const filled = fillDork(q);
+  const eng = engineEl.value;
+  const url = ENGINE_URLS[eng]?.(filled);
+  if (url) window.open(url, '_blank');
+}
+
+function resetAll() {
+  checked = {};
+  renderAll();
+  updateProgress();
+}
+
+function toggleActiveOnly() {
+  activeOnly = !activeOnly;
+  activeBtnEl.textContent = activeOnly ? '✓ Unchecked only' : 'All dorks';
+  activeBtnEl.className = 'btn' + (activeOnly ? ' active' : '');
+  renderAll();
+}
+
+function renderAll() {
+  const searchVal = searchEl.value.toLowerCase();
+  const eng = engineEl.value;
+  const engColor = ENGINE_COLORS[eng] || '#7df9ff';
+
+  const filteredCats = CATEGORIES.map(cat => ({
+    ...cat,
+    dorks: cat.dorks.filter(d => {
+      const matchSearch = !searchVal || d.label.toLowerCase().includes(searchVal) || d.q.toLowerCase().includes(searchVal);
+      const matchActive = !activeOnly || !checked[d.id];
+      return matchSearch && matchActive;
+    })
+  })).filter(cat => cat.dorks.length > 0);
+
+  if (filteredCats.length === 0) {
+    wrapEl.innerHTML = '<div class="no-results">No dorks match your filter.</div>';
+    return;
+  }
+
+  wrapEl.innerHTML = filteredCats.map(cat => {
+    const catDone = cat.dorks.filter(d => checked[d.id]).length;
+    const catPct = Math.round((catDone / cat.dorks.length) * 100);
+    const isOpen = expanded[cat.id] !== false;
+
+    const badges = cat.engines.map(e =>
+      `<span class="eng-badge" style="color:${ENGINE_COLORS[e]};border-color:${ENGINE_COLORS[e]}44">${e}</span>`
+    ).join('');
+
+    const dorkRows = cat.dorks.map(d => {
+      const filled = fillDork(d.q);
+      const isDone = !!checked[d.id];
+      return `
+        <div class="dork-row${isDone ? ' done' : ''}" id="row-${d.id}">
+          <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleCheck('${d.id}','${cat.id}')">
+          <div class="dork-info">
+            <div class="dork-label" id="lbl-${d.id}">${d.label}</div>
+            <div class="dork-query" title="${escHtml(filled)}">${escHtml(filled)}</div>
+          </div>
+          <button class="dork-btn dork-copy" id="copy-${d.id}" onclick="copyDork(${JSON.stringify(d.q)}, '${d.id}')" title="Copy dork">📋</button>
+          <button class="dork-btn dork-open" style="color:${engColor};border-color:${engColor}44" onclick="openDork(${JSON.stringify(d.q)})" title="Open in ${eng}">↗</button>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="category" id="cat-${cat.id}">
+        <div class="cat-header" onclick="toggleExpand('${cat.id}')">
+          <span class="cat-title">${cat.name}</span>
+          <div class="cat-engines">${badges}</div>
+          <span class="cat-count" id="catcount-${cat.id}" style="color:${catDone===cat.dorks.length?'var(--green)':'var(--muted)'}">${catDone}/${cat.dorks.length}</span>
+          <span class="cat-toggle" id="tog-${cat.id}">${isOpen ? '▲' : '▼'}</span>
+        </div>
+        <div class="cat-body${isOpen ? '' : ' collapsed'}" id="body-${cat.id}">
+          <div class="cat-insight">💡 ${escHtml(cat.insight)}</div>
+          <div class="cat-progress">
+            <div class="cat-progress-fill${catPct===100?' complete':''}" id="catprog-${cat.id}" style="width:${catPct}%"></div>
+          </div>
+          ${dorkRows}
+        </div>
+      </div>`;
+  }).join('');
+
+  updateProgress();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Event listeners
+targetEl.addEventListener('input', () => {
+  // Update all query previews in-place
+  document.querySelectorAll('.dork-query').forEach(el => {
+    const row = el.closest('.dork-row');
+    if (!row) return;
+    const id = row.id.replace('row-','');
+    const cat = CATEGORIES.find(c => c.dorks.some(d => d.id === id));
+    if (!cat) return;
+    const dork = cat.dorks.find(d => d.id === id);
+    if (dork) el.textContent = fillDork(dork.q);
+  });
+});
+
+engineEl.addEventListener('change', () => {
+  const eng = engineEl.value;
+  const engColor = ENGINE_COLORS[eng] || '#7df9ff';
+  engineEl.style.color = engColor;
+  // Update open buttons
+  document.querySelectorAll('.dork-open').forEach(btn => {
+    btn.style.color = engColor;
+    btn.style.borderColor = engColor + '44';
+    btn.title = `Open in ${eng}`;
+  });
+});
+
+searchEl.addEventListener('input', renderAll);
+
+// Init
+CATEGORIES.forEach(cat => { expanded[cat.id] = true; });
+engineEl.style.color = ENGINE_COLORS['Google'];
+renderAll();
+</script>
+</body>
+</html>
